@@ -1,85 +1,84 @@
 <?php
-$filename = 'licenses.txt';
+// 라이선스 파일 경로
+$license_file = "licenses.txt";
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $action = $_POST['action'];
-
-    if ($action === 'verify_license') {
-        $user_key = $_POST['user_key'];
-        $current_date = date("Y-m-d");
-
-        $file_contents = file_get_contents($filename);
-        if (strpos($file_contents, "License Key: $user_key") !== false) {
-            $lines = explode("\n", $file_contents);
-            foreach ($lines as $line) {
-                if (strpos($line, "License Key: $user_key") !== false) {
-                    $parts = explode("Expiration Date: ", $line);
-                    $expiration_date = trim($parts[1]);
-                    if ($current_date <= $expiration_date) {
-                        echo "valid";
-                    } else {
-                        echo "expired";
-                    }
-                    break;
-                }
-            }
-        } else {
-            echo "not_found";
-        }
-        exit; // 중요: 결과를 출력한 후 프로그램을 종료합니다.
+// 라이선스 키 추가
+if (isset($_POST['add_license'])) {
+    $license_key = $_POST['license_key'];
+    $expiration_date = $_POST['expiration_date'];
+    $license_data = $license_key . ":" . $expiration_date . PHP_EOL;
+    
+    if (file_put_contents($license_file, $license_data, FILE_APPEND | LOCK_EX)) {
+        echo "라이선스 키가 추가되었습니다.";
+    } else {
+        echo "라이선스 키 추가 오류.";
     }
 }
+
+// 라이선스 키 삭제
+if (isset($_POST['delete_license'])) {
+    $license_key = $_POST['license_key'];
+    $contents = file($license_file);
+    $new_contents = "";
+
+    foreach ($contents as $line) {
+        $parts = explode(":", $line);
+        if ($parts[0] != $license_key) {
+            $new_contents .= $line;
+        }
+    }
+
+    if (file_put_contents($license_file, $new_contents)) {
+        echo "라이선스 키가 삭제되었습니다.";
+    } else {
+        echo "라이선스 키 삭제 오류.";
+    }
+}
+
+// 모든 라이선스 키와 유효기간 가져오기
+$contents = file($license_file);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>라이선스 키 확인</title>
+    <title>라이선스 관리</title>
 </head>
 <body>
-    <h1>라이선스 키 확인</h1>
-    <form action="" method="post" id="licenseForm">
-        <input type="hidden" name="action" value="verify_license">
-        License Key: <input type="text" name="user_key" required><br>
-        <input type="button" value="라이선스 키 확인" onclick="verifyLicense()">
+    <h1>라이선스 관리</h1>
+
+    <!-- 라이선스 키 추가 폼 -->
+    <h2>라이선스 키 추가</h2>
+    <form method="post">
+        License Key: <input type="text" name="license_key" required>
+        Expiration Date: <input type="date" name="expiration_date" required>
+        <input type="submit" name="add_license" value="추가">
     </form>
 
-    <div id="result"></div>
+    <!-- 라이선스 키 삭제 폼 -->
+    <h2>라이선스 키 삭제</h2>
+    <form method="post">
+        License Key: <input type="text" name="license_key" required>
+        <input type="submit" name="delete_license" value="삭제">
+    </form>
 
-    <script>
-        function verifyLicense() {
-            var user_key = document.querySelector("input[name='user_key']").value;
-            var resultDiv = document.getElementById('result');
-            var form = document.getElementById('licenseForm');
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '', true);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        var response = xhr.responseText;
-                        if (response === 'valid') {
-                            resultDiv.innerHTML = '라이선스 키가 유효합니다.';
-                            resultDiv.style.color = 'green';
-                        } else if (response === 'expired') {
-                            resultDiv.innerHTML = '라이선스 키의 유효기한이 만료되었습니다.';
-                            resultDiv.style.color = 'red';
-                        } else if (response === 'not_found') {
-                            resultDiv.innerHTML = '라이선스 키를 찾을 수 없습니다.';
-                            resultDiv.style.color = 'red';
-                        }
-                    } else {
-                        resultDiv.innerHTML = '오류가 발생했습니다.';
-                        resultDiv.style.color = 'red';
-                    }
-                }
-            };
-
-            var formData = new FormData(form);
-            xhr.send(formData);
+    <!-- 라이선스 키 및 유효기간 표시 -->
+    <h2>라이선스 키 및 유효기간</h2>
+    <table border="1">
+        <tr>
+            <th>라이선스 키</th>
+            <th>유효기간</th>
+        </tr>
+        <?php
+        if (!empty($contents)) {
+            foreach ($contents as $line) {
+                $parts = explode(":", $line);
+                echo "<tr><td>" . $parts[0] . "</td><td>" . $parts[1] . "</td></tr>";
+            }
+        } else {
+            echo "<tr><td colspan='2'>라이선스 키가 없습니다.</td></tr>";
         }
-    </script>
+        ?>
+    </table>
 </body>
 </html>

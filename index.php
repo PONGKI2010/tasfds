@@ -2,12 +2,34 @@
 // 라이선스 파일 경로
 $license_file = "licenses.txt";
 
+// 라이선스 키 확인
+if (isset($_POST['check_license'])) {
+    $user_key = $_POST['user_key'];
+    $contents = file($license_file);
+
+    foreach ($contents as $line) {
+        $parts = explode(":", $line);
+        if ($parts[0] == $user_key) {
+            $expiration_date = strtotime($parts[1]);
+            if ($expiration_date >= time()) {
+                echo "valid"; // 유효한 라이선스 키
+                exit;
+            } else {
+                echo "expired"; // 유효기간이 지남
+                exit;
+            }
+        }
+    }
+    echo "invalid"; // 라이선스 키를 찾을 수 없음
+    exit;
+}
+
 // 라이선스 키 추가
 if (isset($_POST['add_license'])) {
     $license_key = $_POST['license_key'];
     $expiration_date = $_POST['expiration_date'];
     $license_data = $license_key . ":" . $expiration_date . PHP_EOL;
-    
+
     if (file_put_contents($license_file, $license_data, FILE_APPEND | LOCK_EX)) {
         echo "라이선스 키가 추가되었습니다.";
     } else {

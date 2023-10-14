@@ -1,33 +1,32 @@
 <?php
-// 파일 경로
 $filename = 'licenses.txt';
 
-// POST 요청으로 받은 작업
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $action = $_POST['action'];
 
-    if ($action === 'create') {
+    if ($action === 'verify_license') {
         $user_key = $_POST['user_key'];
-        $expiration_date = $_POST['expiration_date'];
+        $current_date = date("Y-m-d");
 
-        // 라이선스 키와 만료 날짜를 텍스트 파일에 저장
-        $data = "License Key: $user_key\nExpiration Date: $expiration_date\n\n";
-
-        // 파일에 데이터 추가
-        file_put_contents($filename, $data, FILE_APPEND);
-
-        echo "라이선스 키가 성공적으로 생성되었습니다.";
-    } elseif ($action === 'delete') {
-        $user_key = $_POST['user_key'];
-
-        // 라이선스 키를 텍스트 파일에서 삭제 (비활성화 대신 삭제)
         $file_contents = file_get_contents($filename);
-        $new_contents = str_replace("License Key: $user_key", "License Key: $user_key (Inactive)", $file_contents);
-
-        // 파일에 새로운 내용을 쓰고 기존 파일 덮어쓰기
-        file_put_contents($filename, $new_contents);
-
-        echo "라이선스 키가 성공적으로 삭제되었습니다.";
+        if (strpos($file_contents, "License Key: $user_key") !== false) {
+            $lines = explode("\n", $file_contents);
+            foreach ($lines as $line) {
+                if (strpos($line, "License Key: $user_key") !== false) {
+                    $parts = explode("Expiration Date: ", $line);
+                    $expiration_date = trim($parts[1]);
+                    if ($current_date <= $expiration_date) {
+                        echo "valid";
+                    } else {
+                        echo "expired";
+                    }
+                    break;
+                }
+            }
+        } else {
+            echo "not_found";
+        }
+        exit; // 중요: 결과를 출력한 후 프로그램을 종료합니다.
     }
 }
 ?>
@@ -35,23 +34,52 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>라이선스 키 관리</title>
+    <title>라이선스 키 확인</title>
 </head>
 <body>
-    <h1>라이선스 키 관리</h1>
-    <h2>라이선스 키 생성</h2>
-    <form action="" method="post">
-        <input type="hidden" name="action" value="create">
+    <h1>라이선스 키 확인</h1>
+    <form action="" method="post" id="licenseForm">
+        <input type="hidden" name="action" value="verify_license">
         License Key: <input type="text" name="user_key" required><br>
-        Expiration Date: <input type="date" name="expiration_date" required><br>
-        <input type="submit" value="라이선스 키 생성">
+        <input type="button" value="라이선스 키 확인" onclick="verifyLicense()">
     </form>
 
-    <h2>라이선스 키 삭제/수정</h2>
-    <form action="" method="post">
-        <input type="hidden" name="action" value="delete">
-        License Key to Delete/Deactivate: <input type="text" name="user_key" required><br>
-        <input type="submit" value="라이선스 키 삭제/비활성화">
-    </form>
+    <div id="result"></div>
+
+    <script>
+        function verifyLicense() {
+            var user_key = document.querySelector("input[name='user_key']").value;
+            var resultDiv = document.getElementById('result');
+            var form = document.getElementById('licenseForm');
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var response = xhr.responseText;
+                        if (response === 'valid') {
+                            resultDiv.innerHTML = '라이선스 키가 유효합니다.';
+                            resultDiv.style.color = 'green';
+                        } else if (response === 'expired') {
+                            resultDiv.innerHTML = '라이선스 키의 유효기한이 만료되었습니다.';
+                            resultDiv.style.color = 'red';
+                        } else if (response === 'not_found') {
+                            resultDiv.innerHTML = '라이선스 키를 찾을 수 없습니다.';
+                            resultDiv.style.color = 'red';
+                        }
+                    } else {
+                        resultDiv.innerHTML = '오류가 발생했습니다.';
+                        resultDiv.style.color = 'red';
+                    }
+                }
+            };
+
+            var formData = new FormData(form);
+            xhr.send(formData);
+        }
+    </script>
 </body>
 </html>

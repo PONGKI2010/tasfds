@@ -1,5 +1,4 @@
 <?php
-// 라이선스 파일 경로
 $license_file = "licenses.txt";
 
 // 라이선스 키 추가
@@ -7,7 +6,7 @@ if (isset($_POST['add_license'])) {
     $license_key = $_POST['license_key'];
     $expiration_date = $_POST['expiration_date'];
     $license_data = $license_key . ":" . $expiration_date . PHP_EOL;
-    
+
     if (file_put_contents($license_file, $license_data, FILE_APPEND | LOCK_EX)) {
         echo "라이선스 키가 추가되었습니다.";
     } else {
